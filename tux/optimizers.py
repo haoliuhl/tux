@@ -14,7 +14,7 @@ from absl import logging
 from ml_collections import ConfigDict
 from ml_collections.config_dict import config_dict
 
-from .jax_utils import tree_apply
+from .jax_utils import tree_apply, named_tree_map
 from .misc import float_tensor_to_dtype
 
 

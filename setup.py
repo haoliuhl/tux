@@ -4,7 +4,7 @@ setup(
     name='tux',
     version='0.0.1',
     license='MIT',
-    description='Tools and Utils.',
+    description='Tools and Utils. Some tools and utils modified from many other code to fit my needs.',
     url='https://github.com/lhao499/tux',
     packages=find_packages(include=['tux']),
     python_requires=">=3.7",
@@ -15,6 +15,7 @@ setup(
         'gcsfs',
         'cloudpickle',
         'numpy',
+        'transformers',
     ],
     extras_require={
         'jax': [
