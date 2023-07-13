@@ -18,5 +18,5 @@ from .optimizers import (AdamWOptimizerFactory, get_weight_decay_mask, optax_add
                          OptimizerFactory, OptaxScheduledWeightDecayState, PalmOptimizerFactory)
 from .stats import average_metrics, global_norm
 from .utils import (Timer, array_to_text, load_pickle, open_file, save_pickle,
-                    text_to_array)
+                    text_to_array, check_exists)
 from .wandb import WandBLogger

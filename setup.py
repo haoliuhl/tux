@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='tux',
-    version='0.0.1',
+    version='0.0.2',
     license='MIT',
     description='Tools and Utils. Some tools and utils modified from many other code to fit my needs.',
     url='https://github.com/lhao499/tux',

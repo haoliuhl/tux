@@ -85,6 +85,12 @@ class StreamingCheckpointer(object):
             self.save_checkpoint(
                 checkpoint_state, f'{checkpoint_name}_{step}', checkpoint_gather_fns
             )
+            # Additionally save a checkpoint that can be overwritten for automatic resuming
+            self.save_pickle(metadata, 'metadata.pkl')
+            self.save_pickle(dataset, 'dataset.pkl')
+            self.save_checkpoint(
+                checkpoint_state, f'{checkpoint_name}', checkpoint_gather_fns
+            )
         else:
             # Save a normal checkpoint that can be overwritten
             self.save_pickle(metadata, 'metadata.pkl')

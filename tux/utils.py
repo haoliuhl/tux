@@ -55,3 +55,10 @@ def array_to_text(array, encoding='utf-8'):
     with BytesIO(array) as fin:
         text = fin.read().decode(encoding)
     return text
+
+
+def check_exists(path):
+    if path.startswith("gs://"):
+        return gcsfs.GCSFileSystem().exists(path)
+    else:
+        return os.path.exists(path)

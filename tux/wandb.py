@@ -27,6 +27,9 @@ class WandBLogger(object):
 
         config.online = False
 
+        config.reinit = False
+        config.resume = "allow"
+
         return update_config_dict(config, updates)
 
     def __init__(self, config, variant, enable=True):
@@ -88,7 +91,7 @@ class WandBLogger(object):
 
         if self.enable:
             self.run = wandb.init(
-                reinit=True,
+                reinit=self.config.reinit,
                 config=self._variant,
                 project=self.config.project_id,
                 dir=self.config.wandb_dir,
