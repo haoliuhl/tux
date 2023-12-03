@@ -67,9 +67,7 @@ class StreamingCheckpointer(object):
         compiled_fns = dict()
         with ThreadPoolExecutor() as executor:
             for key in flattend_train_state.keys():
-                lowered_fn = lowered_fns[key]
-                value = flattend_train_state[key]
-                compiled_fns[key] = executor.submit(lowered_fn.compile)
+                compiled_fns[key] = executor.submit(lowered_fns[key].compile)
             compiled_fns = {k: f.result() for k, f in compiled_fns.items()}
 
         with open_file(path, "wb") as fout:
