@@ -1,4 +1,5 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import flax
 import jax
@@ -50,13 +51,30 @@ class StreamingCheckpointer(object):
         train_state = to_state_dict(train_state)
         packer = msgpack.Packer()
         flattend_train_state = flatten_dict(train_state)
-        if gather_fns is not None:
-            gather_fns = flatten_dict(to_state_dict(gather_fns))
+
+        if gather_fns is None:
+            with open_file(path, "wb") as fout:
+                for key, value in flattend_train_state.items():
+                    value = float_tensor_to_dtype(value, float_dtype)
+                    fout.write(packer.pack((key, to_bytes(value))))
+            return
+
+        gather_fns = flatten_dict(to_state_dict(gather_fns))
+        lowered_fns = dict()
+        for key, value in flattend_train_state.items():
+            lowered_fns[key] = gather_fns[key].lower(value)
+
+        compiled_fns = dict()
+        with ThreadPoolExecutor() as executor:
+            for key in flattend_train_state.keys():
+                lowered_fn = lowered_fns[key]
+                value = flattend_train_state[key]
+                compiled_fns[key] = executor.submit(lowered_fn.compile)
+            compiled_fns = {k: f.result() for k, f in compiled_fns.items()}
 
         with open_file(path, "wb") as fout:
             for key, value in flattend_train_state.items():
-                if gather_fns is not None:
-                    value = gather_fns[key](value)
+                value = jax.device_get(compiled_fns[key](value))
                 value = float_tensor_to_dtype(value, float_dtype)
                 fout.write(packer.pack((key, to_bytes(value))))
 
