@@ -174,7 +174,8 @@ class StreamingCheckpointer(object):
     @classmethod
     def load_trainstate_checkpoint(cls, load_from, trainstate_target=None,
                                    trainstate_shard_fns=None,
-                                   disallow_trainstate=False):
+                                   disallow_trainstate=False,
+                                   max_buffer_size=0):
         if trainstate_target is not None:
             params_target = trainstate_target.params['params']
         else:
@@ -196,6 +197,7 @@ class StreamingCheckpointer(object):
                 path=load_path,
                 target=trainstate_target,
                 shard_fns=trainstate_shard_fns,
+                max_buffer_size=max_buffer_size,
             )
         elif load_type == 'trainstate_params':
             # Load the params part of the train state in the streaming format
@@ -204,6 +206,7 @@ class StreamingCheckpointer(object):
                 target=params_target,
                 shard_fns=params_shard_fns,
                 remove_dict_prefix=('params', 'params'),
+                max_buffer_size=max_buffer_size,
             )
             restored_params = flax.core.frozen_dict.freeze(
                 {'params': restored_params}
@@ -214,6 +217,7 @@ class StreamingCheckpointer(object):
                 path=load_path,
                 target=params_target,
                 shard_fns=params_shard_fns,
+                max_buffer_size=max_buffer_size
             )
             restored_params = flax.core.frozen_dict.freeze(
                 {'params': restored_params}
