@@ -116,7 +116,7 @@ class StreamingCheckpointer(object):
             )
 
     @staticmethod
-    def load_checkpoint(path, target=None, shard_fns=None, remove_dict_prefix=None):
+    def load_checkpoint(path, target=None, shard_fns=None, remove_dict_prefix=None, max_buffer_size=0):
         if shard_fns is not None:
             shard_fns = flatten_dict(
                 to_state_dict(shard_fns)
@@ -126,7 +126,7 @@ class StreamingCheckpointer(object):
         flattend_train_state = {}
         with open_file(path) as fin:
             # 83886080 bytes = 80 MB, which is 16 blocks on GCS
-            unpacker = msgpack.Unpacker(fin, read_size=83886080, max_buffer_size=0)
+            unpacker = msgpack.Unpacker(fin, read_size=83886080, max_buffer_size=max_buffer_size)
             for key, value in unpacker:
                 key = tuple(key)
                 if remove_dict_prefix is not None:
