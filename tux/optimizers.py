@@ -37,7 +37,7 @@ class OptimizerFactory(object):
         return config
 
     @classmethod
-    def get_optimizer(cls, config, weight_decay_mask=None):
+    def get_optimizer(cls, config, weight_decay_mask=None, frozen_param_mask=None):
         config = cls.get_default_config(config)
         if config.type == 'palm':
             optimizer, optimizer_info = PalmOptimizerFactory.get_optimizer(
@@ -49,6 +49,10 @@ class OptimizerFactory(object):
             )
         else:
             raise ValueError(f'Unknown optimizer type: {config.type}')
+        
+        if frozen_param_mask is not None:
+            partition_optimizeres = {True: optimizer, False: optax.set_to_zero()}
+            optimizer = optax.multi_transform(partition_optimizeres, frozen_param_mask)
 
         if config.accumulate_gradient_steps > 1:
             optimizer = optax.MultiSteps(
@@ -142,7 +146,7 @@ class AdamWOptimizerFactory(object):
         return config
 
     @classmethod
-    def get_optimizer(cls, config, weight_decay_mask=None):
+    def get_optimizer(cls, config, weight_decay_mask=None, frozen_param_mask=None):
         config = cls.get_default_config(config)
 
         learning_rate_schedule = optax.warmup_cosine_decay_schedule(
@@ -218,8 +222,8 @@ def optax_add_scheduled_weight_decay(schedule_fn, mask=None):
     return optax.GradientTransformation(init_fn, update_fn)
 
 
-def get_weight_decay_mask(exclusions):
-    """ Return a weight decay mask function that computes the pytree masks
+def get_mask(exclusions):
+    """ Return a mask function that computes the pytree masks
         according to the given exclusion rules.
     """
     def decay(name, _):
@@ -232,3 +236,7 @@ def get_weight_decay_mask(exclusions):
         return named_tree_map(decay, params, sep='/')
 
     return weight_decay_mask
+
+
+# For backwards compatibility
+get_weight_decay_mask = get_mask
