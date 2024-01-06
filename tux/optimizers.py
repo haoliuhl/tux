@@ -18,37 +18,6 @@ from .jax_utils import tree_apply, named_tree_map
 from .misc import float_tensor_to_dtype
 
 
-def set_to_zero() -> optax.GradientTransformation:
-  """Stateless transformation that maps input gradients to zero.
-
-  The resulting update function, when called, will return a tree of zeros
-  matching the shape of the input gradients. This means that when the updates
-  returned from this transformation are applied to the model parameters, the
-  model parameters will remain unchanged.
-
-  This can be used in combination with `multi_transform` or `masked` to freeze
-  (i.e. keep fixed) some parts of the tree of model parameters while applying
-  gradient updates to other parts of the tree.
-
-  When updates are set to zero inside the same jit-compiled function as the
-  calculation of gradients, optax transformations, and application of updates to
-  parameters, unnecessary computations will in general be dropped.
-
-  Returns:
-    A `GradientTransformation` object.
-  """
-
-  def init_fn(params):
-    del params
-    return optax.EmptyState()
-
-  def update_fn(updates, state, params=None):
-    del params  # Unused by the zero transform.
-    return jax.tree_util.tree_map(lambda x: x.at[:].set(0), updates), state
-
-  return optax.GradientTransformation(init_fn, update_fn)
-
-
 class OptimizerFactory(object):
     """ Configurable optax optimizer factory. """
 
@@ -82,8 +51,9 @@ class OptimizerFactory(object):
             raise ValueError(f'Unknown optimizer type: {config.type}')
         
         if frozen_param_mask is not None:
-            partition_optimizers = {'trainable': optimizer, 'frozen': set_to_zero()}
-            optimizer = optax.multi_transform(partition_optimizers, frozen_param_mask)
+            # partition_optimizers = {'trainable': optimizer, 'frozen': optax.set_to_zero()}
+            # optimizer = optax.multi_transform(partition_optimizers, frozen_param_mask)
+            optimizer = optax.chain(optimizer, optax.masked(optax.set_to_zero(), frozen_param_mask))
 
         if config.accumulate_gradient_steps > 1:
             optimizer = optax.MultiSteps(
