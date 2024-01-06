@@ -226,18 +226,18 @@ def get_mask(exclusions):
     """ Return a mask function that computes the pytree masks
         according to the given exclusion rules.
     """
-    def fn(name, _):
+    def to_keep(name, _):
         for rule in exclusions:
             if re.search(rule, name) is not None:
                 return False
         return True
 
-    def weight_decay_mask(params):
-        mask = named_tree_map(fn, params, sep='/')
+    def mask_fn(params):
+        mask = named_tree_map(to_keep, params, sep='/')
         import ipdb; ipdb.set_trace()
         return mask
 
-    return weight_decay_mask
+    return mask_fn
 
 
 # For backwards compatibility

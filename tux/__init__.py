@@ -14,7 +14,7 @@ from .jax_utils import (JaxRNG, collect_metrics, flatten_tree,
 from .loss import cross_entropy_loss, cross_entropy_loss_and_accuracy, mse_loss
 from .misc import (float_tensor_to_dtype, float_to_dtype,
                    get_float_dtype_by_name, get_gradient_checkpoint_policy)
-from .optimizers import (AdamWOptimizerFactory, get_weight_decay_mask, optax_add_scheduled_weight_decay,
+from .optimizers import (AdamWOptimizerFactory, get_weight_decay_mask, get_mask, optax_add_scheduled_weight_decay,
                          OptimizerFactory, OptaxScheduledWeightDecayState, PalmOptimizerFactory)
 from .stats import average_metrics, global_norm
 from .utils import (Timer, array_to_text, load_pickle, open_file, save_pickle,
