@@ -51,7 +51,7 @@ class OptimizerFactory(object):
             raise ValueError(f'Unknown optimizer type: {config.type}')
         
         if frozen_param_mask is not None:
-            partition_optimizers = {False: optimizer, True: optax.set_to_zero()}
+            partition_optimizers = {'trainable': optimizer, 'frozen': optax.set_to_zero()}
             optimizer = optax.multi_transform(partition_optimizers, frozen_param_mask)
 
         if config.accumulate_gradient_steps > 1:
@@ -222,10 +222,15 @@ def optax_add_scheduled_weight_decay(schedule_fn, mask=None):
     return optax.GradientTransformation(init_fn, update_fn)
 
 
-def get_mask(exclusions):
+def get_mask(exclusions, tf_map=None):
     """ Return a mask function that computes the pytree masks
         according to the given exclusion rules.
     """
+    if tf_map is None:
+        tf_map = {True: True, False: False}
+    else:
+        assert len(tf_map) == 2 and True in tf_map and False in tf_map
+
     def to_keep(name, _):
         for rule in exclusions:
             if re.search(rule, name) is not None:
@@ -233,7 +238,7 @@ def get_mask(exclusions):
         return True
 
     def mask_fn(params):
-        mask = named_tree_map(to_keep, params, sep='/')
+        mask = named_tree_map(lambda *args: tf_map[to_keep(*args)], params, sep='/')
         import ipdb; ipdb.set_trace()
         return mask
 
