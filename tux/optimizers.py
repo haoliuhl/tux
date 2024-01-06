@@ -51,8 +51,8 @@ class OptimizerFactory(object):
             raise ValueError(f'Unknown optimizer type: {config.type}')
         
         if frozen_param_mask is not None:
-            partition_optimizeres = {True: optimizer, False: optax.set_to_zero()}
-            optimizer = optax.multi_transform(partition_optimizeres, frozen_param_mask)
+            partition_optimizers = {False: optimizer, True: optax.set_to_zero()}
+            optimizer = optax.multi_transform(partition_optimizers, frozen_param_mask)
 
         if config.accumulate_gradient_steps > 1:
             optimizer = optax.MultiSteps(
@@ -226,14 +226,16 @@ def get_mask(exclusions):
     """ Return a mask function that computes the pytree masks
         according to the given exclusion rules.
     """
-    def decay(name, _):
+    def fn(name, _):
         for rule in exclusions:
             if re.search(rule, name) is not None:
                 return False
         return True
 
     def weight_decay_mask(params):
-        return named_tree_map(decay, params, sep='/')
+        mask = named_tree_map(fn, params, sep='/')
+        import ipdb; ipdb.set_trace()
+        return mask
 
     return weight_decay_mask
 
