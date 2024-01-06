@@ -51,7 +51,7 @@ class OptimizerFactory(object):
             raise ValueError(f'Unknown optimizer type: {config.type}')
         
         if frozen_param_mask is not None:
-            partition_optimizers = {'trainable': optimizer, 'frozen': optax.set_to_zero()}
+            partition_optimizers = {'trainable': optimizer, 'frozen': optimizer} #optax.set_to_zero()}
             optimizer = optax.multi_transform(partition_optimizers, frozen_param_mask)
 
         if config.accumulate_gradient_steps > 1:
