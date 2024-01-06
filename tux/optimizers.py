@@ -238,9 +238,7 @@ def get_mask(exclusions, tf_map=None):
         return True
 
     def mask_fn(params):
-        mask = named_tree_map(lambda *args: tf_map[to_keep(*args)], params, sep='/')
-        import ipdb; ipdb.set_trace()
-        return mask
+        return named_tree_map(lambda *args: tf_map[to_keep(*args)], params, sep='/')
 
     return mask_fn
 
