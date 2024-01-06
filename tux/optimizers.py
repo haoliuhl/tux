@@ -38,21 +38,22 @@ class OptimizerFactory(object):
 
     @classmethod
     def get_optimizer(cls, config, weight_decay_mask=None, frozen_param_mask=None):
+        prepend_to_chain = []
+        if frozen_param_mask is not None:
+            prepend_to_chain.append(optax.masked(optax.set_to_zero(), frozen_param_mask))
+
         config = cls.get_default_config(config)
         if config.type == 'palm':
             optimizer, optimizer_info = PalmOptimizerFactory.get_optimizer(
-                config.palm_optimizer, weight_decay_mask
+                config.palm_optimizer, weight_decay_mask, prepend_to_chain
             )
         elif config.type == 'adamw':
             optimizer, optimizer_info = AdamWOptimizerFactory.get_optimizer(
-                config.adamw_optimizer, weight_decay_mask
+                config.adamw_optimizer, weight_decay_mask, prepend_to_chain
             )
         else:
             raise ValueError(f'Unknown optimizer type: {config.type}')
         
-        if frozen_param_mask is not None:
-            optimizer = optax.chain(optimizer, optax.masked(optax.set_to_zero(), frozen_param_mask))
-
         if config.accumulate_gradient_steps > 1:
             optimizer = optax.MultiSteps(
                 optimizer, config.accumulate_gradient_steps
@@ -145,7 +146,7 @@ class AdamWOptimizerFactory(object):
         return config
 
     @classmethod
-    def get_optimizer(cls, config, weight_decay_mask=None, frozen_param_mask=None):
+    def get_optimizer(cls, config, weight_decay_mask=None, prepend_to_chain=tuple()):
         config = cls.get_default_config(config)
 
         learning_rate_schedule = optax.warmup_cosine_decay_schedule(
@@ -162,6 +163,7 @@ class AdamWOptimizerFactory(object):
 
         if config.multiply_by_parameter_scale:
             optimizer = optax.chain(
+                *prepend_to_chain,
                 optax.clip_by_global_norm(config.clip_gradient),
                 optax.adafactor(
                     learning_rate=learning_rate_schedule,
@@ -179,6 +181,7 @@ class AdamWOptimizerFactory(object):
             )
         else:
             optimizer = optax.chain(
+                *prepend_to_chain,
                 optax.clip_by_global_norm(config.clip_gradient),
                 optax.adamw(
                     learning_rate=learning_rate_schedule,
