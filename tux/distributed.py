@@ -12,8 +12,11 @@ import jax.numpy as jnp
 import numpy as np
 from jax.experimental import mesh_utils
 from jax.experimental.pjit import pjit
-from jax.experimental.pjit import \
-    with_sharding_constraint as _with_sharding_constraint
+try:
+    from jax.lax import with_sharding_constraint as _with_sharding_constraint
+except:
+    from jax.experimental.pjit import \
+        with_sharding_constraint as _with_sharding_constraint
 from jax.interpreters import pxla
 from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as PS
