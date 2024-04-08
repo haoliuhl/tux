@@ -95,7 +95,7 @@ def flatten_config_dict(config, prefix=None):
 
 def function_args_to_config(fn, none_arg_types=None, exclude_args=None, override_args=None):
     config = ConfigDict()
-    arg_spec = inspect.getargspec(fn)
+    arg_spec = inspect.getfullargspec(fn)
     n_args = len(arg_spec.defaults)
     arg_names = arg_spec.args[-n_args:]
     default_values = arg_spec.defaults
