@@ -18,6 +18,7 @@ class WandBLogger(object):
         config.project_id = ""
         config.project_entity = placeholder(str)
         config.experiment_id = placeholder(str)
+        config.experiment_group = placeholder(str)
         config.append_uuid = True
         config.experiment_note = placeholder(str)
 
@@ -96,6 +97,7 @@ class WandBLogger(object):
                 project=self.config.project_id,
                 dir=self.config.wandb_dir,
                 id=self.config.experiment_id,
+                group=self.config.experiment_group,
                 resume="allow",
                 notes=self.config.experiment_note,
                 entity=self.config.project_entity,
@@ -119,6 +121,10 @@ class WandBLogger(object):
     @property
     def experiment_id(self):
         return self.config.experiment_id
+
+    @property
+    def experiment_group(self):
+        return self.config.experiment_group
 
     @property
     def variant(self):
