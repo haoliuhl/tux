@@ -26,7 +26,7 @@ def cross_entropy_loss(logits, labels, smoothing_factor=0.):
     return -jnp.mean(jnp.sum(logp * labels, axis=-1))
 
 
-def cross_entropy_loss_and_accuracy(logits, tokens, valid=None):
+def cross_entropy_loss_and_accuracy(logits, tokens, valid=None, bias=None):
     if valid is None:
         valid = jnp.ones(tokens.shape[:2])
     valid = valid.astype(jnp.float32)
@@ -41,7 +41,9 @@ def cross_entropy_loss_and_accuracy(logits, tokens, valid=None):
         -1,
     )
     token_log_prob = jnp.where(valid > 0.0, token_log_prob, jnp.array(0.0))
-    loss = -jnp.mean(jnp.sum(token_log_prob, axis=-1) / valid_text_length)
+    if bias is None:
+        bias = 0.0
+    loss = -jnp.mean((jnp.sum(token_log_prob, axis=-1) + bias) / valid_text_length)
     correct = jnp.where(
         valid > 0.0,
         jnp.argmax(logits, axis=-1) == tokens,

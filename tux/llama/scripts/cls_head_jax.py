@@ -78,6 +78,32 @@ def main(argv):
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     train_state_shapes = jax.eval_shape(init_fn, next_rng())
+    train_state_partition = match_partition_rules(
+        config_cls.get_partition_rules(llama_config.scan_layers, llama_config.param_scan_axis), train_state_shapes
+    )
+
+    shard_fns, gather_fns = make_shard_and_gather_fns(
+        train_state_partition, train_state_shapes
+    )
+    checkpointer = StreamingCheckpointer(
+        FLAGS.checkpointer, logger.output_dir,
+        enable=jax.process_index() == 0,
+    )
+
+    sharded_init_fn = pjit(
+        init_fn,
+        in_shardings=PS(),
+        out_shardings=train_state_partition
+    )
+
+    sharded_create_trainstate_from_params = pjit(
+        create_trainstate_from_params,
+        in_shardings=(train_state_partition.params, ),
+        out_shardings=train_state_partition,
+        donate_argnums=(0, ),
+    )
+
+    train_state_shapes = jax.eval_shape(init_fn, next_rng())
     train_state, params = checkpointer.load_trainstate_checkpoint(
         FLAGS.load_checkpoint, train_state_shapes, None, #shard_fns,
     )
