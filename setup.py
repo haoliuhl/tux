@@ -2,10 +2,10 @@ from setuptools import find_packages, setup
 
 setup(
     name='tux',
-    version='0.0.2',
+    version='0.0.3',
     license='MIT',
     description='Tools and Utils for JAX/Flax',
-    url='https://github.com/lhao499/tux',
+    url='https://github.com/forhaoliu/tux',
     packages=find_packages(include=['tux']),
     python_requires=">=3.7",
     install_requires=[
