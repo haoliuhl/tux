@@ -104,16 +104,53 @@ def flatten_tree(xs, is_leaf=None, sep=None):
     return _flatten(xs, ())
 
 
-def named_tree_map(f, tree, is_leaf=None, sep=None):
+# def named_tree_map(f, tree, is_leaf=None, sep=None):
+#     """ An extended version of jax.tree_util.tree_map, where the mapped function
+#         f takes both the name (path) and the tree leaf as input.
+#     """
+#     flattened_tree = flatten_tree(tree, is_leaf=is_leaf, sep=sep)
+#     id_to_name = {id(val): key for key, val in flattened_tree.items()}
+#     def map_fn(leaf):
+#         name = id_to_name[id(leaf)]
+#         return f(name, leaf)
+#     return jax.tree_util.tree_map(map_fn, tree)
+
+
+def tree_path_to_string(path, sep=None):
+    keys = []
+    for key in path:
+        if isinstance(key, jax.tree_util.SequenceKey):
+            keys.append(str(key.idx))
+        elif isinstance(key, jax.tree_util.DictKey):
+            keys.append(str(key.key))
+        elif isinstance(key, jax.tree_util.GetAttrKey):
+            keys.append(str(key.name))
+        elif isinstance(key, jax.tree_util.FlattenedIndexKey):
+            keys.append(str(key.key))
+        else:
+            keys.append(str(key))
+    if sep is None:
+        return tuple(keys)
+    return sep.join(keys)
+
+
+def named_tree_map(f, tree, *rest, is_leaf=None, sep=None):
     """ An extended version of jax.tree_util.tree_map, where the mapped function
         f takes both the name (path) and the tree leaf as input.
     """
-    flattened_tree = flatten_tree(tree, is_leaf=is_leaf, sep=sep)
-    id_to_name = {id(val): key for key, val in flattened_tree.items()}
-    def map_fn(leaf):
-        name = id_to_name[id(leaf)]
-        return f(name, leaf)
-    return jax.tree_util.tree_map(map_fn, tree)
+    return jax.tree_util.tree_map_with_path(
+        lambda path, x, *r: f(tree_path_to_string(path, sep=sep), x, *r),
+        tree, *rest,
+        is_leaf=is_leaf
+    )
+
+
+def print_pytree_structure(tree, sep='/', is_leaf=None):
+    def print_fn(path, val):
+        shape = f'shape: {val.shape if hasattr(val, "shape") else "none"}'
+        dtype = f'dtype: {val.dtype if hasattr(val, "dtype") else "none"}'
+        print(f'{path}: {shape}, {dtype}')
+    named_tree_map(print_fn, tree, is_leaf=is_leaf, sep=sep)
 
 
 def get_pytree_shape_info(tree):
