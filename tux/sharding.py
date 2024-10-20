@@ -232,6 +232,7 @@ class MeshShardingHelper(object):
             get_partition_spec, sharding_rules, pytree, is_leaf=is_leaf
         )
 
+    # TODO(haoliuhl): largely rewrite this function to make it more user-friendly
     def sjit(self,
              fun,
              in_shardings=None,

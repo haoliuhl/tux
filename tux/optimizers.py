@@ -1,134 +1,28 @@
-import dataclasses
-import os
-import random
-import re
-import time
-from functools import partial
-from typing import Any, Mapping, NamedTuple, Text, Tuple, Union
-
 import jax
 import jax.numpy as jnp
+from functools import partial
 import numpy as np
+import os
+import re
+import json
+import numpy as np
+import flax
+import jax
+import jax.numpy as jnp
 import optax
-from absl import logging
-from ml_collections import ConfigDict
-from ml_collections.config_dict import config_dict
-
-from .jax_utils import tree_apply, named_tree_map
-from .misc import float_tensor_to_dtype
-
-
-class OptimizerFactory(object):
-    """ Configurable optax optimizer factory. """
-
-    def __init__(self):
-        raise NotImplementedError
-
-    @staticmethod
-    def get_default_config(updates=None):
-        config = ConfigDict()
-        config.accumulate_gradient_steps = 1
-        config.type = 'adamw'
-        config.palm_optimizer = PalmOptimizerFactory.get_default_config()
-        config.adamw_optimizer = AdamWOptimizerFactory.get_default_config()
-
-        if updates is not None:
-            config.update(ConfigDict(updates).copy_and_resolve_references())
-        return config
-
-    @classmethod
-    def get_optimizer(cls, config, weight_decay_mask=None, frozen_param_mask=None):
-        prepend_to_chain = []
-        if frozen_param_mask is not None:
-            prepend_to_chain.append(optax.masked(optax.set_to_zero(), frozen_param_mask))
-
-        config = cls.get_default_config(config)
-        if config.type == 'palm':
-            optimizer, optimizer_info = PalmOptimizerFactory.get_optimizer(
-                config.palm_optimizer, weight_decay_mask, prepend_to_chain
-            )
-        elif config.type == 'adamw':
-            optimizer, optimizer_info = AdamWOptimizerFactory.get_optimizer(
-                config.adamw_optimizer, weight_decay_mask, prepend_to_chain
-            )
-        else:
-            raise ValueError(f'Unknown optimizer type: {config.type}')
-        
-        if config.accumulate_gradient_steps > 1:
-            optimizer = optax.MultiSteps(
-                optimizer, config.accumulate_gradient_steps
-            )
-
-        return optimizer, optimizer_info
+import orbax.checkpoint as ocp
+from ml_collections.config_dict.config_dict import placeholder as config_placeholder
+from .config import config_dict, update_config_dict
+from typing import Any, Mapping, NamedTuple, Text, Tuple, Union
+from .jax_utils import named_tree_map
 
 
-class PalmOptimizerFactory(object):
-    """ PaLM optimizer factory. This optimizer implements the optimizer
-        described in the PaLM paper: https://arxiv.org/abs/2204.02311
-    """
-
-    def __init__(self):
-        raise NotImplementedError
-
-    @staticmethod
-    def get_default_config(updates=None):
-        config = ConfigDict()
-        config.lr = 0.01
-        config.lr_warmup_steps = 10000
-        config.b1 = 0.9
-        config.b2 = 0.99
-        config.clip_gradient = 1.0
-        config.weight_decay = 1e-4
-        config.bf16_momentum = False
-
-        if updates is not None:
-            config.update(ConfigDict(updates).copy_and_resolve_references())
-        return config
-
-    @classmethod
-    def get_optimizer(cls, config, weight_decay_mask=None):
-        config = cls.get_default_config(config)
-
-        def learning_rate_schedule(step):
-            multiplier = config.lr / 0.01
-            return multiplier / jnp.sqrt(jnp.maximum(step, config.lr_warmup_steps))
-
-        def weight_decay_schedule(step):
-            multiplier = config.weight_decay / 1e-4
-            return -multiplier * jnp.square(learning_rate_schedule(step))
-
-        optimizer_info = dict(
-            learning_rate_schedule=learning_rate_schedule,
-            weight_decay_schedule=weight_decay_schedule,
-        )
-
-        optimizer = optax.chain(
-            optax.clip_by_global_norm(config.clip_gradient),
-            optax.adafactor(
-                learning_rate=learning_rate_schedule,
-                multiply_by_parameter_scale=True,
-                momentum=config.b1,
-                decay_rate=config.b2,
-                factored=False,
-                clipping_threshold=None,
-                dtype_momentum=jnp.bfloat16 if config.bf16_momentum else jnp.float32,
-            ),
-            optax_add_scheduled_weight_decay(
-                weight_decay_schedule, weight_decay_mask
-            )
-        )
-        return optimizer, optimizer_info
-
-
-class AdamWOptimizerFactory(object):
+class AdamConfigurator(object):
     """ AdamW optimizer with cosine schedule. """
 
-    def __init__(self):
-        raise NotImplementedError
-
     @staticmethod
     def get_default_config(updates=None):
-        config = ConfigDict()
+        config = config_dict()
         config.init_lr = 0.0
         config.end_lr = 0.001
         config.lr = 0.01
@@ -138,17 +32,11 @@ class AdamWOptimizerFactory(object):
         config.b2 = 0.95
         config.clip_gradient = 1.0
         config.weight_decay = 1e-4
-        config.bf16_momentum = False
-        config.multiply_by_parameter_scale = False
-
-        if updates is not None:
-            config.update(ConfigDict(updates).copy_and_resolve_references())
-        return config
+        return update_config_dict(config, updates)
 
     @classmethod
-    def get_optimizer(cls, config, weight_decay_mask=None, prepend_to_chain=tuple()):
+    def get_optimizer_and_schedule(cls, config, weight_decay_mask=None):
         config = cls.get_default_config(config)
-
         learning_rate_schedule = optax.warmup_cosine_decay_schedule(
             init_value=config.init_lr,
             peak_value=config.lr,
@@ -156,44 +44,17 @@ class AdamWOptimizerFactory(object):
             decay_steps=config.lr_decay_steps,
             end_value=config.end_lr,
         )
-
-        optimizer_info = dict(
-            learning_rate_schedule=learning_rate_schedule,
+        optimizer = optax.chain(
+            optax.clip_by_global_norm(config.clip_gradient),
+            optax.adamw(
+                learning_rate=learning_rate_schedule,
+                weight_decay=config.weight_decay,
+                b1=config.b1,
+                b2=config.b2,
+                mask=weight_decay_mask,
+            ),
         )
-
-        if config.multiply_by_parameter_scale:
-            optimizer = optax.chain(
-                *prepend_to_chain,
-                optax.clip_by_global_norm(config.clip_gradient),
-                optax.adafactor(
-                    learning_rate=learning_rate_schedule,
-                    multiply_by_parameter_scale=True,
-                    momentum=config.b1,
-                    decay_rate=config.b2,
-                    factored=False,
-                    clipping_threshold=None,
-                    dtype_momentum=jnp.bfloat16 if config.bf16_momentum else jnp.float32,
-                ),
-                optax_add_scheduled_weight_decay(
-                    lambda step: -learning_rate_schedule(step) * config.weight_decay,
-                    weight_decay_mask
-                )
-            )
-        else:
-            optimizer = optax.chain(
-                *prepend_to_chain,
-                optax.clip_by_global_norm(config.clip_gradient),
-                optax.adamw(
-                    learning_rate=learning_rate_schedule,
-                    weight_decay=config.weight_decay,
-                    b1=config.b1,
-                    b2=config.b2,
-                    mask=weight_decay_mask,
-                    mu_dtype=jnp.bfloat16 if config.bf16_momentum else jnp.float32,
-                ),
-            )
-
-        return optimizer, optimizer_info
+        return optimizer, learning_rate_schedule
 
 
 class OptaxScheduledWeightDecayState(NamedTuple):

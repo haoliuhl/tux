@@ -1,16 +1,16 @@
-import logging
 import os
 import random
 import tempfile
 import time
 import uuid
 from copy import copy
-from io import BytesIO
 from socket import gethostname
+import logging
+from io import BytesIO
 
+import numpy as np
 import cloudpickle as pickle
 import gcsfs
-import numpy as np
 
 
 class Timer(object):
@@ -28,12 +28,19 @@ class Timer(object):
         return self._time
 
 
-def open_file(path, mode='rb', block_size=None, cache_type='readahead'):
+def open_file(path, mode='rb', cache_type='readahead'):
     if path.startswith("gs://"):
         logging.getLogger("fsspec").setLevel(logging.WARNING)
-        return gcsfs.GCSFileSystem().open(path, mode, block_size=block_size, cache_type=cache_type)
+        return gcsfs.GCSFileSystem().open(path, mode, cache_type=cache_type)
     else:
         return open(path, mode)
+
+
+def makedirs(path, exist_ok=True):
+    if path.startswith("gs://"):
+        return gcsfs.GCSFileSystem().makedirs(path, exist_ok=exist_ok)
+    else:
+        return os.makedirs(path, exist_ok=exist_ok)
 
 
 def save_pickle(obj, path):

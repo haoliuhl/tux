@@ -141,3 +141,6 @@ class WandBLogger(object):
     @property
     def profile_dir(self):
         return self.config.profile_dir
+
+def prefix_metrics(metrics, prefix):
+    return {"{}/{}".format(prefix, key): value for key, value in metrics.items()}
