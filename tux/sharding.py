@@ -290,7 +290,7 @@ class MeshShardingHelper(object):
                 matched_out_shardings = None
             else:
                 with self.get_context(annotation_shardings=annotation_shardings):
-                    output = jax.eval_shape(fun, *args)
+                    output = jax.jit(fun, *args, static_argnums=static_argnums).eval_shape(*args)
                 matched_out_shardings = self.match_sharding_rule(out_shardings, output)
 
             jitted_fn = jax.jit(
