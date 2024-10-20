@@ -13,6 +13,7 @@ class JaxRNG(object):
     """ A convenient stateful Jax RNG wrapper. Can be used to wrap RNG inside
         pure function.
     """
+    global_rng_generator = None
 
     @classmethod
     def from_seed(cls, seed):
@@ -33,6 +34,15 @@ class JaxRNG(object):
             split_rngs = jax.random.split(self.rng, num=len(keys) + 1)
             self.rng = split_rngs[0]
             return {key: val for key, val in zip(keys, split_rngs[1:])}
+
+    @classmethod
+    def init_global_rng(cls, seed):
+        cls.global_rng_generator = cls.from_seed(seed)
+
+    @classmethod
+    def next_rng(cls, *args, **kwargs):
+        assert cls.global_rng_generator is not None, 'Global RNG not initialized.'
+        return cls.global_rng_generator(*args, **kwargs)
 
 
 def wrap_function_with_rng(rng):
