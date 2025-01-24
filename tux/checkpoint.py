@@ -20,11 +20,7 @@ class Checkpointer(object):
 
     def __init__(self, path):
         self.path = path
-        self.checkpointer = ocp.StandardCheckpointer(
-            async_options=ocp.options.AsyncOptions(
-                timeout_secs=60*60, barrier_sync_fn=ocp.multihost.get_barrier_sync_fn()
-            )
-        )
+        self.checkpointer = ocp.StandardCheckpointer()
         if self.path != '':
             tux.makedirs(self.path)
 
