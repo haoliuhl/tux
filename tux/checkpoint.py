@@ -43,7 +43,7 @@ class Checkpointer(object):
     @classmethod
     def restore_pytree(cls, path, item):
         return ocp.StandardCheckpointer().restore(
-            path, args=ocp.args.StandardRestore(item)
+            path, ocp.args.StandardRestore(item)
         )
 
     def save_json(self, data, name):
