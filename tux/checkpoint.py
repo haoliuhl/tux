@@ -20,7 +20,11 @@ class Checkpointer(object):
 
     def __init__(self, path):
         self.path = path
-        self.checkpointer = ocp.StandardCheckpointer()
+        self.checkpointer = ocp.StandardCheckpointer(
+            async_options=ocp.options.AsyncOptions(
+                timeout_secs=60*60, barrier_sync_fn=ocp.multihost.sync_global_processes
+            )
+        )
         if self.path != '':
             tux.makedirs(self.path)
 
@@ -34,6 +38,7 @@ class Checkpointer(object):
             path = os.path.join(self.path, prefix)
 
         self.checkpointer.save(path, pytree, force=True)
+        self.checkpointer.wait_until_finished()
         # Create a commit_success.txt file to indicate that the checkpoint is
         # saved successfully. This is a workaround for orbax so that locally
         # saved checkpoint can be restored when copied to Google cloud storage.
