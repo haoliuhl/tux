@@ -22,7 +22,7 @@ class Checkpointer(object):
         self.path = path
         self.checkpointer = ocp.StandardCheckpointer(
             async_options=ocp.options.AsyncOptions(
-                timeout_secs=60*60, barrier_sync_fn=ocp.multihost.sync_global_processes
+                timeout_secs=60*60, barrier_sync_fn=ocp.multihost.get_barrier_sync_fn()
             )
         )
         if self.path != '':
