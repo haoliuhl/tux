@@ -118,6 +118,10 @@ class WandBLogger(object):
         if self.enable:
             save_pickle(obj, os.path.join(self.config.output_dir, filename))
 
+    def log_artifact(self, artifact):
+        if self.enable:
+            self.run.log_artifact(artifact)
+
     @property
     def experiment_id(self):
         return self.config.experiment_id
