@@ -38,12 +38,13 @@ class Checkpointer(object):
         # Create a commit_success.txt file to indicate that the checkpoint is
         # saved successfully. This is a workaround for orbax so that locally
         # saved checkpoint can be restored when copied to Google cloud storage.
-        tux.open_file(os.path.join(path, 'commit_success.txt'), 'w').close()
+        if jax.process_index() == 0:
+            tux.open_file(os.path.join(path, 'commit_success.txt'), 'w').close()
 
     @classmethod
     def restore_pytree(cls, path, item):
         return ocp.StandardCheckpointer().restore(
-            path, ocp.args.StandardRestore(item)
+            path, target=ocp.args.StandardRestore(item)
         )
 
     def save_json(self, data, name):
