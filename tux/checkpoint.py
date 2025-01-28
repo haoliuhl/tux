@@ -47,12 +47,13 @@ class Checkpointer(object):
 
     def save_json(self, data, name):
         """ Save dictionary as JSON. """
-        if self.path == '':
-            return
-        path = os.path.join(self.path, name)
-        tux.makedirs(self.path)
-        with tux.open_file(path, 'w') as f:
-            f.write(json.dumps(data, indent=4))
+        if jax.process_index() == 0:
+            if self.path == '':
+                return
+            path = os.path.join(self.path, name)
+            tux.makedirs(self.path)
+            with tux.open_file(path, 'w') as f:
+                f.write(json.dumps(data, indent=4))
 
     @classmethod
     def load_json(cls, path):
